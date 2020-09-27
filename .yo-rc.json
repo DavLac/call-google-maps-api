@@ -1,0 +1,37 @@
+{
+  "generator-jhipster": {
+    "promptValues": {
+      "packageName": "fr.dla.app"
+    },
+    "jhipsterVersion": "6.10.1",
+    "applicationType": "microservice",
+    "baseName": "dlapp",
+    "packageName": "fr.dla.app",
+    "packageFolder": "fr/dla/app",
+    "serverPort": "8080",
+    "authenticationType": "jwt",
+    "cacheProvider": "no",
+    "websocket": false,
+    "databaseType": "sql",
+    "devDatabaseType": "h2Disk",
+    "prodDatabaseType": "mysql",
+    "searchEngine": false,
+    "messageBroker": false,
+    "serviceDiscoveryType": false,
+    "buildTool": "gradle",
+    "enableSwaggerCodegen": false,
+    "jwtSecretKey": "M2QxMGZjNjBjODk1N2M3NGVkZWNmZGYzNTRiYzE5Nzk2ZGE1ODNmODI2ZThhN2I0YTZjMzA5YTNiZWM4YTUyZTY2YjY2OTIyODMzNjU0YjczZDQ3Y2E3ODBjZTcxZjFjMjI4YmRhZDRmNjNiZjRjNmYzMmEzMmRkYWJlNTYzODA=",
+    "embeddableLaunchScript": false,
+    "creationTimestamp": 1601245710178,
+    "testFrameworks": ["cucumber"],
+    "jhiPrefix": "jhi",
+    "entitySuffix": "",
+    "dtoSuffix": "DTO",
+    "otherModules": [],
+    "enableTranslation": false,
+    "clientPackageManager": "npm",
+    "blueprints": [],
+    "skipClient": true,
+    "skipUserManagement": true
+  }
+}
