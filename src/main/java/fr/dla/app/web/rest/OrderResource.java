@@ -15,13 +15,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.thymeleaf.util.ArrayUtils;
 
 import java.util.Arrays;
+import java.util.List;
 
 import static fr.dla.app.config.Constants.ENTITY_DLAPP;
 
@@ -56,10 +59,24 @@ public class OrderResource {
     public ResponseEntity<Order> createOrder(
         @ApiParam(value = "Order origin and destination coordinates") @RequestBody OrderCoordinates orderCoordinates
     ) {
-        checkOrderCoordinatesBody(orderCoordinates);
         log.info("POST request to create an order. orderCoordinates = {}", orderCoordinates);
+        checkOrderCoordinatesBody(orderCoordinates);
         OrderCoordinatesDTO orderCoordinatesDTO = orderCoordinatesMapper.toDto(orderCoordinates);
         return ResponseEntity.ok(orderService.createOrder(orderCoordinatesDTO));
+    }
+
+    @GetMapping()
+    @ApiOperation("Get orders")
+    @ApiResponses(value = {
+        @ApiResponse(code = 400, message = "Bad request"),
+        @ApiResponse(code = 500, message = "Internal server error")
+    })
+    public ResponseEntity<List<Order>> getOrders(
+        @ApiParam("Page number of the requested page") @RequestParam(required = false) Integer page,
+        @ApiParam("The size of the requested page") @RequestParam(required = false) Integer limit
+    ) {
+        log.info("GET request to get orders. page = {}, limit = {}", page, limit);
+        return ResponseEntity.ok(orderService.getOrders(page, limit));
     }
 
     private static void checkOrderCoordinatesBody(OrderCoordinates orderCoordinates) {

@@ -13,17 +13,26 @@ import fr.dla.app.web.rest.errors.InternalServerErrorException;
 import fr.dla.app.web.rest.errors.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import javax.validation.constraints.NotNull;
+import java.util.List;
+import java.util.stream.Collectors;
 
+import static fr.dla.app.config.Constants.ENTITY_DLAPP;
 import static fr.dla.app.config.Constants.GOOGLE_API_ENTITY;
 
 @Service
+@Transactional
 public class OrderService {
 
     private final Logger log = LoggerFactory.getLogger(OrderService.class);
+
+    private static final String BAD_REQUEST_ERROR_KEY = "badRequestError";
 
     private final OrderEntityRepository orderEntityRepository;
     private final GoogleMapsRouteClient googleMapsRouteClient;
@@ -37,6 +46,7 @@ public class OrderService {
         this.orderMapper = orderMapper;
     }
 
+    //region public method
     public Order createOrder(@NotNull OrderCoordinatesDTO orderCoordinatesDTO) {
         DistanceMatrixResponseEntity distanceMatrixResponseEntity =
             googleMapsRouteClient.getDistanceDetailsBetweenTwoCoordinates(
@@ -54,6 +64,24 @@ public class OrderService {
         return orderMapper.toDto(orderEntitySaved);
     }
 
+    @Transactional(readOnly = true)
+    public List<Order> getOrders(Integer page, Integer limit) {
+        log.info("Get orders with page = {} and limit = {}", page, limit);
+
+        checkParamMinimumSize(page, "Page");
+        checkParamMinimumSize(limit, "Limit");
+
+        Page<OrderEntity> orderEntities = orderEntityRepository.findAll(PageRequest.of(page - 1, limit));
+
+        log.info("Fetched {} orders", orderEntities.getTotalElements());
+
+        return orderEntities.getContent().stream()
+            .map(orderMapper::toDto)
+            .collect(Collectors.toList());
+    }
+    //endregion public method
+
+    //region private method
     private static void handleDistanceMatrixResponseEntityResponse(DistanceMatrixResponseEntity distanceMatrixResponseEntity) {
         if (distanceMatrixResponseEntity == null) {
             throw new InternalServerErrorException("Google maps API return a null response", GOOGLE_API_ENTITY, "nullBodyError");
@@ -65,7 +93,7 @@ public class OrderService {
             case INVALID_REQUEST:
             case MAX_ELEMENTS_EXCEEDED:
                 throw new BadRequestException(String.format("Google maps API return a bad request error : %s",
-                    distanceMatrixResponseEntity.getStatus()), GOOGLE_API_ENTITY, "badRequestError");
+                    distanceMatrixResponseEntity.getStatus()), GOOGLE_API_ENTITY, BAD_REQUEST_ERROR_KEY);
             case UNKNOWN_ERROR:
             case OVER_DAILY_LIMIT:
             case OVER_QUERY_LIMIT:
@@ -90,7 +118,7 @@ public class OrderService {
                 break;
             case MAX_ROUTE_LENGTH_EXCEEDED:
                 throw new BadRequestException(String.format("Google maps API return a bad request error : %s",
-                    distanceMatrixResponseEntity.getRows().get(0).getElements().get(0).getStatus()), GOOGLE_API_ENTITY, "badRequestError");
+                    distanceMatrixResponseEntity.getRows().get(0).getElements().get(0).getStatus()), GOOGLE_API_ENTITY, BAD_REQUEST_ERROR_KEY);
             case NOT_FOUND:
             case ZERO_RESULTS:
                 throw new NotFoundException(String.format("Google maps API return a not found error : %s",
@@ -104,4 +132,11 @@ public class OrderService {
             throw new InternalServerErrorException("Google maps API return null distance result", GOOGLE_API_ENTITY, "nullDistanceError");
         }
     }
+
+    private void checkParamMinimumSize(Integer param, String paramName) {
+        if (param == null || param < 1) {
+            throw new BadRequestException(String.format("%s minimum size = 1", paramName), ENTITY_DLAPP, BAD_REQUEST_ERROR_KEY);
+        }
+    }
+    //endregion private method
 }

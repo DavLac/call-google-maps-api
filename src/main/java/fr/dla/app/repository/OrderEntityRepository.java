@@ -2,6 +2,7 @@ package fr.dla.app.repository;
 
 
 import fr.dla.app.domain.entities.OrderEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
@@ -9,6 +10,6 @@ import org.springframework.stereotype.Repository;
  * Spring Data  repository for the Order entity.
  */
 @Repository
-public interface OrderEntityRepository extends CrudRepository<OrderEntity, Integer> {
+public interface OrderEntityRepository extends JpaRepository<OrderEntity, Integer> {
 
 }

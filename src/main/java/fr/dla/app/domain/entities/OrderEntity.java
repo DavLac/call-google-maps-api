@@ -1,7 +1,9 @@
 package fr.dla.app.domain.entities;
 
 import fr.dla.app.domain.OrderStatus;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
@@ -13,6 +15,8 @@ import javax.persistence.Id;
 
 @Getter
 @Setter
+@AllArgsConstructor
+@NoArgsConstructor
 @ToString
 @Entity
 public class OrderEntity {
