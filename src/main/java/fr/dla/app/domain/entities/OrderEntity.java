@@ -11,6 +11,7 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.Version;
 
 
 @Getter
@@ -27,6 +28,9 @@ public class OrderEntity {
     private Integer distance;
 
     private OrderStatus status;
+
+    @Version
+    private Long version = 0L;
 
     public OrderEntity(Integer distance, OrderStatus status) {
         this.distance = distance;

@@ -11,6 +11,7 @@ import fr.dla.app.service.mapper.OrderMapper;
 import fr.dla.app.web.rest.errors.BadRequestException;
 import fr.dla.app.web.rest.errors.InternalServerErrorException;
 import fr.dla.app.web.rest.errors.NotFoundException;
+import fr.dla.app.web.rest.errors.PreconditionFailedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -19,6 +20,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
+import javax.persistence.EntityManager;
+import javax.persistence.LockModeType;
+import javax.persistence.PersistenceContext;
 import javax.validation.constraints.NotNull;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,6 +41,9 @@ public class OrderService {
     private final OrderEntityRepository orderEntityRepository;
     private final GoogleMapsRouteClient googleMapsRouteClient;
     private final OrderMapper orderMapper;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public OrderService(OrderEntityRepository orderEntityRepository,
                         GoogleMapsRouteClient googleMapsRouteClient,
@@ -65,7 +72,7 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public List<Order> getOrders(Integer page, Integer limit) {
+    public List<Order> getOrders(final Integer page, final Integer limit) {
         log.info("Get orders with page = {} and limit = {}", page, limit);
 
         checkParamMinimumSize(page, "Page");
@@ -78,6 +85,31 @@ public class OrderService {
         return orderEntities.getContent().stream()
             .map(orderMapper::toDto)
             .collect(Collectors.toList());
+    }
+
+    public OrderStatus takeOrder(final Integer orderId) {
+        log.info("Take an order with order id = {}", orderId);
+
+        if (orderId == null) {
+            throw new BadRequestException("Order ID is null", ENTITY_DLAPP, BAD_REQUEST_ERROR_KEY);
+        }
+
+        OrderEntity orderEntity = entityManager.find(OrderEntity.class, orderId, LockModeType.WRITE);
+
+        if (orderEntity == null) {
+            throw new NotFoundException("Order not found", ENTITY_DLAPP, "orderNotFound");
+        }
+
+        if (orderEntity.getStatus() == OrderStatus.TAKEN) {
+            throw new PreconditionFailedException("Order already taken", ENTITY_DLAPP, "orderAlreadyTaken");
+        }
+
+        orderEntity.setStatus(OrderStatus.TAKEN);
+        OrderEntity orderEntityUpdated = entityManager.merge(orderEntity);
+
+        log.info("Order updated to status = {}", OrderStatus.TAKEN);
+
+        return orderEntityUpdated.getStatus();
     }
     //endregion public method
 
@@ -133,7 +165,7 @@ public class OrderService {
         }
     }
 
-    private void checkParamMinimumSize(Integer param, String paramName) {
+    private static void checkParamMinimumSize(Integer param, String paramName) {
         if (param == null || param < 1) {
             throw new BadRequestException(String.format("%s minimum size = 1", paramName), ENTITY_DLAPP, BAD_REQUEST_ERROR_KEY);
         }

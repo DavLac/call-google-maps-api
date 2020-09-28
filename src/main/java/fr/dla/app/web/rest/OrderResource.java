@@ -2,6 +2,7 @@ package fr.dla.app.web.rest;
 
 import fr.dla.app.domain.Order;
 import fr.dla.app.domain.OrderCoordinates;
+import fr.dla.app.domain.OrderStatus;
 import fr.dla.app.service.OrderService;
 import fr.dla.app.service.dto.OrderCoordinatesDTO;
 import fr.dla.app.service.mapper.OrderCoordinatesMapper;
@@ -16,6 +17,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -77,6 +80,21 @@ public class OrderResource {
     ) {
         log.info("GET request to get orders. page = {}, limit = {}", page, limit);
         return ResponseEntity.ok(orderService.getOrders(page, limit));
+    }
+
+    @PatchMapping("/{id}")
+    @ApiOperation("Take an order")
+    @ApiResponses(value = {
+        @ApiResponse(code = 400, message = "Bad request"),
+        @ApiResponse(code = 404, message = "Order not found"),
+        @ApiResponse(code = 412, message = "Order already taken"),
+        @ApiResponse(code = 500, message = "Internal server error")
+    })
+    public ResponseEntity<OrderStatus> takeOrder(
+        @ApiParam(value = "Order ID to take") @PathVariable(value = "id") Integer id
+    ) {
+        log.info("PATCH request to take an order. Order id = {}", id);
+        return ResponseEntity.ok(orderService.takeOrder(id));
     }
 
     private static void checkOrderCoordinatesBody(OrderCoordinates orderCoordinates) {
