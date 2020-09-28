@@ -1,19 +1,17 @@
 package fr.dla.app.web.rest.errors;
 
-import io.github.jhipster.web.util.HeaderUtil;
-
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.ConcurrencyFailureException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.NativeWebRequest;
+import org.thymeleaf.util.StringUtils;
 import org.zalando.problem.DefaultProblem;
 import org.zalando.problem.Problem;
 import org.zalando.problem.ProblemBuilder;
-import org.zalando.problem.Status;
 import org.zalando.problem.spring.web.advice.ProblemHandling;
 import org.zalando.problem.spring.web.advice.security.SecurityAdviceTrait;
 import org.zalando.problem.violations.ConstraintViolationProblem;
@@ -91,17 +89,21 @@ public class ExceptionTranslator implements ProblemHandling, SecurityAdviceTrait
         return create(ex, problem, request);
     }
 
-    @ExceptionHandler
-    public ResponseEntity<Problem> handleBadRequestAlertException(BadRequestAlertException ex, NativeWebRequest request) {
-        return create(ex, request, HeaderUtil.createFailureAlert(applicationName, false, ex.getEntityName(), ex.getErrorKey(), ex.getMessage()));
+    @ExceptionHandler(DlappException.class)
+    public ResponseEntity<DlappErrorResponse> handleBadRequestAlertException(DlappException ex) {
+        if(ex.getStatus() == null){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new DlappErrorResponse(ex.getMessage()));
+        }
+
+        return ResponseEntity.status(ex.getStatus().getStatusCode()).body(new DlappErrorResponse(ex.getMessage()));
     }
 
-    @ExceptionHandler
-    public ResponseEntity<Problem> handleConcurrencyFailure(ConcurrencyFailureException ex, NativeWebRequest request) {
-        Problem problem = Problem.builder()
-            .withStatus(Status.CONFLICT)
-            .with(MESSAGE_KEY, ErrorConstants.ERR_CONCURRENCY_FAILURE)
-            .build();
-        return create(ex, problem, request);
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<DlappErrorResponse> handleUnknownException(Exception ex) {
+        String errorMessage = (!StringUtils.isEmpty(ex.getMessage()))
+            ? ex.getMessage()
+            : HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase();
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new DlappErrorResponse(errorMessage));
     }
 }

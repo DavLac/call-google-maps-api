@@ -228,6 +228,10 @@ dependencies {
     // Use ", version: jhipster_dependencies_version, changing: true" if you want
     // to use a SNAPSHOT release instead of a stable release
     implementation group: "io.github.jhipster", name: "jhipster-framework"
+    implementation "org.projectlombok:lombok:1.18.12"
+    annotationProcessor 'org.projectlombok:lombok:1.18.12'
+    implementation "org.mapstruct:mapstruct:1.4.0.Final"
+    annotationProcessor "org.mapstruct:mapstruct-processor:1.4.0.Final"
     implementation "javax.annotation:javax.annotation-api"
     implementation "io.dropwizard.metrics:metrics-core"
     implementation "io.micrometer:micrometer-registry-prometheus"

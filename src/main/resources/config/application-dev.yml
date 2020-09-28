@@ -52,6 +52,7 @@ spring:
   liquibase:
     # Remove 'faker' if you do not want the sample data to be loaded automatically
     contexts: dev, faker
+    enabled: false
   mail:
     host: localhost
     port: 25
@@ -123,4 +124,7 @@ jhipster:
 # https://www.jhipster.tech/common-application-properties/
 # ===================================================================
 
-# application:
+application:
+  google-maps-api:
+    url: 'https://maps.googleapis.com/maps/api/distancematrix/json'
+    key: AIzaSyBbHwr5wunZZ70qJTce1aVNa8_gZ60UorE
