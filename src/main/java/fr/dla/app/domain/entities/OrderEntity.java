@@ -1,6 +1,6 @@
 package fr.dla.app.domain.entities;
 
-import fr.dla.app.domain.OrderStatus;
+import fr.dla.app.domain.OrderStatusEnum;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -27,12 +27,12 @@ public class OrderEntity {
 
     private Integer distance;
 
-    private OrderStatus status;
+    private OrderStatusEnum status;
 
     @Version
     private Long version = 0L;
 
-    public OrderEntity(Integer distance, OrderStatus status) {
+    public OrderEntity(Integer distance, OrderStatusEnum status) {
         this.distance = distance;
         this.status = status;
     }

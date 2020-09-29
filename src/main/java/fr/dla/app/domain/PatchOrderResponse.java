@@ -11,6 +11,6 @@ import lombok.ToString;
 @ToString
 @AllArgsConstructor
 @NoArgsConstructor
-public class OrderStatus {
-    private String status;
+public class PatchOrderResponse {
+    private ResponseStatusEnum status;
 }

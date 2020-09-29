@@ -10,5 +10,5 @@ import lombok.ToString;
 public class Order {
     private Integer id;
     private Integer distance;
-    private OrderStatus status;
+    private OrderStatusEnum status;
 }

@@ -2,8 +2,12 @@ package fr.dla.app.service;
 
 import fr.dla.app.client.googlemapsapi.GoogleMapsRouteClient;
 import fr.dla.app.client.googlemapsapi.model.DistanceMatrixResponseEntity;
+import fr.dla.app.client.googlemapsapi.model.GoogleApiElementLevelStatusEnum;
+import fr.dla.app.client.googlemapsapi.model.GoogleApiTopLevelStatusEnum;
 import fr.dla.app.domain.Order;
-import fr.dla.app.domain.OrderStatus;
+import fr.dla.app.domain.OrderStatusEnum;
+import fr.dla.app.domain.PatchOrderResponse;
+import fr.dla.app.domain.ResponseStatusEnum;
 import fr.dla.app.domain.entities.OrderEntity;
 import fr.dla.app.repository.OrderEntityRepository;
 import fr.dla.app.service.dto.OrderCoordinatesDTO;
@@ -12,6 +16,7 @@ import fr.dla.app.web.rest.errors.BadRequestException;
 import fr.dla.app.web.rest.errors.InternalServerErrorException;
 import fr.dla.app.web.rest.errors.NotFoundException;
 import fr.dla.app.web.rest.errors.PreconditionFailedException;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -63,8 +68,8 @@ public class OrderService {
 
         handleDistanceMatrixResponseEntityResponse(distanceMatrixResponseEntity);
 
-        OrderEntity orderEntity = new OrderEntity(distanceMatrixResponseEntity.getRows().get(0).getElements().get(0)
-            .getDistance().getValue(), OrderStatus.UNASSIGNED);
+        final Integer distanceResult = distanceMatrixResponseEntity.getRows().get(0).getElements().get(0).getDistance().getValue();
+        OrderEntity orderEntity = new OrderEntity(distanceResult, OrderStatusEnum.UNASSIGNED);
         log.info("Creating order in database with order entity = {}", orderEntity);
         OrderEntity orderEntitySaved = orderEntityRepository.save(orderEntity);
 
@@ -87,11 +92,16 @@ public class OrderService {
             .collect(Collectors.toList());
     }
 
-    public OrderStatus takeOrder(final Integer orderId) {
+    public PatchOrderResponse takeOrder(final Integer orderId, final String orderStatus) {
         log.info("Take an order with order id = {}", orderId);
 
         if (orderId == null) {
             throw new BadRequestException("Order ID is null", ENTITY_DLAPP, BAD_REQUEST_ERROR_KEY);
+        }
+
+        if (!StringUtils.equals(orderStatus, OrderStatusEnum.TAKEN.name())) {
+            throw new BadRequestException(String.format("Order status is not %s", OrderStatusEnum.TAKEN.name()),
+                ENTITY_DLAPP, BAD_REQUEST_ERROR_KEY);
         }
 
         OrderEntity orderEntity = entityManager.find(OrderEntity.class, orderId, LockModeType.WRITE);
@@ -100,16 +110,16 @@ public class OrderService {
             throw new NotFoundException("Order not found", ENTITY_DLAPP, "orderNotFound");
         }
 
-        if (orderEntity.getStatus() == OrderStatus.TAKEN) {
+        if (orderEntity.getStatus() == OrderStatusEnum.TAKEN) {
             throw new PreconditionFailedException("Order already taken", ENTITY_DLAPP, "orderAlreadyTaken");
         }
 
-        orderEntity.setStatus(OrderStatus.TAKEN);
-        OrderEntity orderEntityUpdated = entityManager.merge(orderEntity);
+        orderEntity.setStatus(OrderStatusEnum.TAKEN);
+        entityManager.merge(orderEntity);
 
-        log.info("Order updated to status = {}", OrderStatus.TAKEN);
+        log.info("Order updated to status = {}", OrderStatusEnum.TAKEN);
 
-        return orderEntityUpdated.getStatus();
+        return new PatchOrderResponse(ResponseStatusEnum.SUCCESS);
     }
     //endregion public method
 
@@ -119,45 +129,50 @@ public class OrderService {
             throw new InternalServerErrorException("Google maps API return a null response", GOOGLE_API_ENTITY, "nullBodyError");
         }
 
-        switch (distanceMatrixResponseEntity.getStatus()) {
+        GoogleApiTopLevelStatusEnum topLevelResponseStatus = distanceMatrixResponseEntity.getStatus();
+        switch (topLevelResponseStatus) {
             case OK:
                 break;
             case INVALID_REQUEST:
             case MAX_ELEMENTS_EXCEEDED:
                 throw new BadRequestException(String.format("Google maps API return a bad request error : %s",
-                    distanceMatrixResponseEntity.getStatus()), GOOGLE_API_ENTITY, BAD_REQUEST_ERROR_KEY);
+                    topLevelResponseStatus), GOOGLE_API_ENTITY, BAD_REQUEST_ERROR_KEY);
             case UNKNOWN_ERROR:
             case OVER_DAILY_LIMIT:
             case OVER_QUERY_LIMIT:
             case REQUEST_DENIED:
                 throw new InternalServerErrorException(String.format("Google maps API return a client error response : %s",
-                    distanceMatrixResponseEntity.getStatus()), GOOGLE_API_ENTITY, "clientErrorResponse");
+                    topLevelResponseStatus), GOOGLE_API_ENTITY, "clientErrorResponse");
             default:
                 throw new InternalServerErrorException(String.format("Google maps API return unknown response error : %s",
-                    distanceMatrixResponseEntity.getStatus()), GOOGLE_API_ENTITY, "unknownErrorResponse");
+                    topLevelResponseStatus), GOOGLE_API_ENTITY, "unknownErrorResponse");
         }
 
         if (CollectionUtils.isEmpty(distanceMatrixResponseEntity.getRows())) {
-            throw new InternalServerErrorException("Google maps API return empty rows result", GOOGLE_API_ENTITY, "emptyRowsError");
+            throw new InternalServerErrorException("Google maps API return empty rows result",
+                GOOGLE_API_ENTITY, "emptyRowsError");
         }
 
         if (CollectionUtils.isEmpty(distanceMatrixResponseEntity.getRows().get(0).getElements())) {
-            throw new InternalServerErrorException("Google maps API return empty elements result", GOOGLE_API_ENTITY, "emptyElementsError");
+            throw new InternalServerErrorException("Google maps API return empty elements result",
+                GOOGLE_API_ENTITY, "emptyElementsError");
         }
 
-        switch (distanceMatrixResponseEntity.getRows().get(0).getElements().get(0).getStatus()) {
+        GoogleApiElementLevelStatusEnum elementLevelResponseStatus = distanceMatrixResponseEntity.getRows().get(0)
+            .getElements().get(0).getStatus();
+        switch (elementLevelResponseStatus) {
             case OK:
                 break;
             case MAX_ROUTE_LENGTH_EXCEEDED:
                 throw new BadRequestException(String.format("Google maps API return a bad request error : %s",
-                    distanceMatrixResponseEntity.getRows().get(0).getElements().get(0).getStatus()), GOOGLE_API_ENTITY, BAD_REQUEST_ERROR_KEY);
+                    elementLevelResponseStatus), GOOGLE_API_ENTITY, BAD_REQUEST_ERROR_KEY);
             case NOT_FOUND:
             case ZERO_RESULTS:
                 throw new NotFoundException(String.format("Google maps API return a not found error : %s",
-                    distanceMatrixResponseEntity.getRows().get(0).getElements().get(0).getStatus()), GOOGLE_API_ENTITY, "notFoundError");
+                    elementLevelResponseStatus), GOOGLE_API_ENTITY, "notFoundError");
             default:
                 throw new InternalServerErrorException(String.format("Google maps API return unknown response error : %s",
-                    distanceMatrixResponseEntity.getRows().get(0).getElements().get(0).getStatus()), GOOGLE_API_ENTITY, "unknownErrorResponse");
+                    elementLevelResponseStatus), GOOGLE_API_ENTITY, "unknownErrorResponse");
         }
 
         if (distanceMatrixResponseEntity.getRows().get(0).getElements().get(0).getDistance() == null) {
