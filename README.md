@@ -1,10 +1,28 @@
-# dlapp
+# DLAPP
 
 This application was generated using JHipster 6.10.1, you can find documentation and help at [https://www.jhipster.tech/documentation-archive/v6.10.1](https://www.jhipster.tech/documentation-archive/v6.10.1).
 
 This is a "microservice" application intended to be part of a microservice architecture, please refer to the [Doing microservices with JHipster][] page of the documentation for more information.
 
-This application is configured for Service Discovery and Configuration with . On launch, it will refuse to start if it is not able to connect to .
+## Google API key configuration
+
+To use this application, please insert your own Google api key in this following files :
+
+- Local testing for development : main/resources/config/application-dev.yml
+- Container/deployed : main/resources/config/application-prod.yml
+- For integration tests : test/resources/config/application.yml
+
+Property name : application.google-maps-api.key
+
+## Starting the application with Docker
+
+Just execute start.sh at the root of the project.
+2 containers will be launched :
+
+- a Mysql database and
+- the Dlapp component
+
+You can reach the microservice on port 8080.
 
 ## Development
 
