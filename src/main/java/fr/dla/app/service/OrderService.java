@@ -24,11 +24,13 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+import org.thymeleaf.util.ArrayUtils;
 
 import javax.persistence.EntityManager;
 import javax.persistence.LockModeType;
 import javax.persistence.PersistenceContext;
 import javax.validation.constraints.NotNull;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -60,6 +62,9 @@ public class OrderService {
 
     //region public method
     public Order createOrder(@NotNull OrderCoordinatesDTO orderCoordinatesDTO) {
+
+        checkOrderCoordinatesBody(orderCoordinatesDTO);
+
         DistanceMatrixResponseEntity distanceMatrixResponseEntity =
             googleMapsRouteClient.getDistanceDetailsBetweenTwoCoordinates(
                 orderCoordinatesDTO.getOrigin(),
@@ -100,7 +105,7 @@ public class OrderService {
         }
 
         if (!StringUtils.equals(orderStatus, OrderStatusEnum.TAKEN.name())) {
-            throw new BadRequestException(String.format("Order status is not %s", OrderStatusEnum.TAKEN.name()),
+            throw new BadRequestException(String.format("Status parameter is not equal to '%s'", OrderStatusEnum.TAKEN.name()),
                 ENTITY_DLAPP, BAD_REQUEST_ERROR_KEY);
         }
 
@@ -124,6 +129,30 @@ public class OrderService {
     //endregion public method
 
     //region private method
+    private static void checkOrderCoordinatesBody(OrderCoordinatesDTO orderCoordinatesDTO) {
+        if (orderCoordinatesDTO == null) {
+            throw new BadRequestException("Body is null", ENTITY_DLAPP, "nullBodyError");
+        }
+
+        if (ArrayUtils.isEmpty(orderCoordinatesDTO.getDestination()) ||
+            ArrayUtils.isEmpty(orderCoordinatesDTO.getOrigin())) {
+            throw new BadRequestException("Parameters 'origin' and 'destination' must not be empty", ENTITY_DLAPP,
+                "emptyObjectError");
+        }
+
+        if (isOrderCoordinatesHasTwoStringNotBlank(orderCoordinatesDTO)) {
+            throw new BadRequestException("Parameters 'origin' and 'destination' must be an array of exactly two strings not blank",
+                ENTITY_DLAPP, "badObjectError");
+        }
+    }
+
+    private static boolean isOrderCoordinatesHasTwoStringNotBlank(OrderCoordinatesDTO orderCoordinatesDTO) {
+        return (orderCoordinatesDTO.getDestination().length != 2 ||
+            orderCoordinatesDTO.getOrigin().length != 2 ||
+            Arrays.stream(orderCoordinatesDTO.getOrigin()).anyMatch(StringUtils::isBlank) ||
+            Arrays.stream(orderCoordinatesDTO.getDestination()).anyMatch(StringUtils::isBlank));
+    }
+
     private static void handleDistanceMatrixResponseEntityResponse(DistanceMatrixResponseEntity distanceMatrixResponseEntity) {
         if (distanceMatrixResponseEntity == null) {
             throw new InternalServerErrorException("Google maps API return a null response", GOOGLE_API_ENTITY, "nullBodyError");
@@ -167,9 +196,9 @@ public class OrderService {
                 throw new BadRequestException(String.format("Google maps API return a bad request error : %s",
                     elementLevelResponseStatus), GOOGLE_API_ENTITY, BAD_REQUEST_ERROR_KEY);
             case NOT_FOUND:
+                throw new NotFoundException("Google maps API return a not found error", GOOGLE_API_ENTITY, "notFoundError");
             case ZERO_RESULTS:
-                throw new NotFoundException(String.format("Google maps API return a not found error : %s",
-                    elementLevelResponseStatus), GOOGLE_API_ENTITY, "notFoundError");
+                throw new PreconditionFailedException("Google maps API return zero results", GOOGLE_API_ENTITY, "zeroResultsError");
             default:
                 throw new InternalServerErrorException(String.format("Google maps API return unknown response error : %s",
                     elementLevelResponseStatus), GOOGLE_API_ENTITY, "unknownErrorResponse");

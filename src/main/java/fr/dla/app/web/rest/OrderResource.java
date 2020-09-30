@@ -8,15 +8,17 @@ import fr.dla.app.service.OrderService;
 import fr.dla.app.service.dto.OrderCoordinatesDTO;
 import fr.dla.app.service.mapper.OrderCoordinatesMapper;
 import fr.dla.app.web.rest.errors.BadRequestException;
+import fr.dla.app.web.rest.errors.DlappErrorResponse;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,16 +27,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.thymeleaf.util.ArrayUtils;
 
-import java.util.Arrays;
 import java.util.List;
 
 import static fr.dla.app.config.Constants.ENTITY_DLAPP;
 
-/**
- * Controller for view and managing Log Level at runtime.
- */
 @RestController
 @RequestMapping(
     path = "/orders",
@@ -53,12 +50,10 @@ public class OrderResource {
         this.orderCoordinatesMapper = orderCoordinatesMapper;
     }
 
-    //region endpoints
-
     /**
      * Create an order
      *
-     * @param orderCoordinates origin and destination with a start and end latitude
+     * @param orderCoordinates origin and destination with a start and end latitude/longitude
      * @return the created order
      */
     @PostMapping()
@@ -72,7 +67,6 @@ public class OrderResource {
         @ApiParam(value = "Order origin and destination coordinates") @RequestBody OrderCoordinates orderCoordinates
     ) {
         log.info("POST request to create an order. orderCoordinates = {}", orderCoordinates);
-        checkOrderCoordinatesBody(orderCoordinates);
         OrderCoordinatesDTO orderCoordinatesDTO = orderCoordinatesMapper.toDto(orderCoordinates);
         return ResponseEntity.ok(orderService.createOrder(orderCoordinatesDTO));
     }
@@ -125,31 +119,4 @@ public class OrderResource {
 
         return ResponseEntity.ok(orderService.takeOrder(id, orderStatus.getStatus()));
     }
-    //endregion endpoints
-
-    //region private methods
-    private static void checkOrderCoordinatesBody(OrderCoordinates orderCoordinates) {
-        if (orderCoordinates == null) {
-            throw new BadRequestException("Body is null", ENTITY_DLAPP, "nullBodyError");
-        }
-
-        if (ArrayUtils.isEmpty(orderCoordinates.getDestination()) ||
-            ArrayUtils.isEmpty(orderCoordinates.getOrigin())) {
-            throw new BadRequestException("Parameters 'origin' and 'destination' must not be empty", ENTITY_DLAPP,
-                "emptyObjectError");
-        }
-
-        if (isOrderCoordinatesHasTwoStringNotBlank(orderCoordinates)) {
-            throw new BadRequestException("Parameters 'origin' and 'destination' must be an array of exactly two strings not blank",
-                ENTITY_DLAPP, "badObjectError");
-        }
-    }
-
-    private static boolean isOrderCoordinatesHasTwoStringNotBlank(OrderCoordinates orderCoordinates) {
-        return (orderCoordinates.getDestination().length != 2 ||
-            orderCoordinates.getOrigin().length != 2 ||
-            Arrays.stream(orderCoordinates.getOrigin()).anyMatch(StringUtils::isBlank) ||
-            Arrays.stream(orderCoordinates.getDestination()).anyMatch(StringUtils::isBlank));
-    }
-    //endregion private methods
 }
