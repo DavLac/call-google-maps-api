@@ -127,4 +127,4 @@ jhipster:
 application:
   google-maps-api:
     url: 'https://maps.googleapis.com/maps/api/distancematrix/json'
-    key: AIzaSyBbHwr5wunZZ70qJTce1aVNa8_gZ60UorE
+    key: YOUR_GOOGLE_API_KEY
