@@ -213,6 +213,7 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok:1.18.12'
     implementation "org.mapstruct:mapstruct:1.4.0.Final"
     annotationProcessor "org.mapstruct:mapstruct-processor:1.4.0.Final"
+    implementation "org.hibernate.validator:hibernate-validator:6.0.10.Final"
     implementation "javax.annotation:javax.annotation-api"
     implementation "io.dropwizard.metrics:metrics-core"
     implementation "io.micrometer:micrometer-registry-prometheus"

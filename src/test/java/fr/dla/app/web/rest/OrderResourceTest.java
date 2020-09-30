@@ -16,6 +16,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.util.Arrays;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(MockitoExtension.class)
@@ -44,8 +46,8 @@ class OrderResourceTest {
     @Test
     void createOrder_withFullValidParameters_shouldReturnOkResponse() {
         //inputs
-        orderCoordinates.setOrigin(new String[]{START_LATITUDE, START_LONGITUDE});
-        orderCoordinates.setDestination(new String[]{END_LATITUDE, END_LONGITUDE});
+        orderCoordinates.setOrigin(Arrays.asList(START_LATITUDE, START_LONGITUDE));
+        orderCoordinates.setDestination(Arrays.asList(END_LATITUDE, END_LONGITUDE));
 
         orderCoordinatesDTO.setOrigin(orderCoordinatesDTO.getOrigin());
         orderCoordinatesDTO.setDestination(orderCoordinatesDTO.getDestination());
@@ -55,7 +57,7 @@ class OrderResourceTest {
         order.setId(ORDER_ID);
         order.setDistance(ORDER_DISTANCE);
         order.setStatus(OrderStatusEnum.UNASSIGNED);
-        Mockito.when(orderService.createOrder(orderCoordinatesDTO)).thenReturn(order);
+        Mockito.when(orderService.createOrder(orderCoordinatesDTO.getOrigin(), orderCoordinatesDTO.getDestination())).thenReturn(order);
 
         //test
         ResponseEntity<Order> orderResponseEntity = orderResource.createOrder(orderCoordinates);
@@ -68,14 +70,14 @@ class OrderResourceTest {
     @Test
     void createOrder_withServiceThrowAnException_shouldReturnTheException() {
         //inputs
-        orderCoordinates.setOrigin(new String[]{START_LATITUDE, START_LONGITUDE});
-        orderCoordinates.setDestination(new String[]{END_LATITUDE, END_LONGITUDE});
+        orderCoordinates.setOrigin(Arrays.asList(START_LATITUDE, START_LONGITUDE));
+        orderCoordinates.setDestination(Arrays.asList(END_LATITUDE, END_LONGITUDE));
 
         orderCoordinatesDTO.setOrigin(orderCoordinatesDTO.getOrigin());
         orderCoordinatesDTO.setDestination(orderCoordinatesDTO.getDestination());
         Mockito.when(orderCoordinatesMapper.toDto(orderCoordinates)).thenReturn(orderCoordinatesDTO);
 
-        Mockito.when(orderService.createOrder(orderCoordinatesDTO)).thenThrow(new BadRequestException("", "", NULL_BODY_ERROR_ERROR_KEY));
+        //Mockito.when(orderService.createOrder(orderCoordinatesDTO)).thenThrow(new BadRequestException("", "", NULL_BODY_ERROR_ERROR_KEY));
 
         //test
         try {

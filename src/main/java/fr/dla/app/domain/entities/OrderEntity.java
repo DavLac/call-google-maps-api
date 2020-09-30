@@ -32,6 +32,12 @@ public class OrderEntity {
     @Version
     private Long version = 0L;
 
+    public OrderEntity(Integer id, Integer distance, OrderStatusEnum status) {
+        this.id = id;
+        this.distance = distance;
+        this.status = status;
+    }
+
     public OrderEntity(Integer distance, OrderStatusEnum status) {
         this.distance = distance;
         this.status = status;

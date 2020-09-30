@@ -2,7 +2,6 @@ package fr.dla.app.web.rest;
 
 import fr.dla.app.DlappApp;
 import fr.dla.app.domain.OrderCoordinates;
-import fr.dla.app.domain.OrderStatus;
 import fr.dla.app.domain.OrderStatusEnum;
 import fr.dla.app.domain.entities.OrderEntity;
 import fr.dla.app.repository.OrderEntityRepository;
@@ -18,18 +17,18 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import static fr.dla.app.web.rest.OrderIntTest.CoordinatesEnum.DISNEYLAND_PARIS;
 import static fr.dla.app.web.rest.OrderIntTest.CoordinatesEnum.LALAMOVE_HONG_KONG_OFFICE;
 import static fr.dla.app.web.rest.OrderIntTest.CoordinatesEnum.MALDIVES_ISLAND;
 import static fr.dla.app.web.rest.OrderIntTest.CoordinatesEnum.PARIS_EIFFEL_TOWER;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -38,9 +37,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class OrderIntTest {
 
     private static final int DISTANCE_BETWEEN_EIFFEL_TOWER_AND_DISNEYLAND_PARIS = 51231;
-    private static final int ORDER_ID = 1;
-    private static final int ORDER_DISTANCE = 10;
-    private static final String NULL_BODY_ERROR_ERROR_KEY = "nullBodyError";
 
     enum CoordinatesEnum {
         PARIS_EIFFEL_TOWER("48.858245", "2.294642"),
@@ -89,8 +85,8 @@ class OrderIntTest {
     @Test
     @Transactional
     void createOrder_withFullValidParameters_shouldReturnCreatedOrder() throws Exception {
-        orderCoordinates.setOrigin(new String[]{PARIS_EIFFEL_TOWER.latitude, PARIS_EIFFEL_TOWER.longitude});
-        orderCoordinates.setDestination(new String[]{DISNEYLAND_PARIS.latitude, DISNEYLAND_PARIS.longitude});
+        orderCoordinates.setOrigin(Arrays.asList(PARIS_EIFFEL_TOWER.latitude, PARIS_EIFFEL_TOWER.longitude));
+        orderCoordinates.setDestination(Arrays.asList(DISNEYLAND_PARIS.latitude, DISNEYLAND_PARIS.longitude));
 
         int databaseSizeBeforeCreate = orderEntityRepository.findAll().size();
 
@@ -117,8 +113,8 @@ class OrderIntTest {
     @Test
     @Transactional
     void createOrder_withBetweenTwoUnreachableCoordinates_shouldReturnZeroResultsError() throws Exception {
-        orderCoordinates.setOrigin(new String[]{LALAMOVE_HONG_KONG_OFFICE.latitude, LALAMOVE_HONG_KONG_OFFICE.longitude});
-        orderCoordinates.setDestination(new String[]{MALDIVES_ISLAND.latitude, MALDIVES_ISLAND.longitude});
+        orderCoordinates.setOrigin(Arrays.asList(LALAMOVE_HONG_KONG_OFFICE.latitude, LALAMOVE_HONG_KONG_OFFICE.longitude));
+        orderCoordinates.setDestination(Arrays.asList(MALDIVES_ISLAND.latitude, MALDIVES_ISLAND.longitude));
 
         int databaseSizeBeforeCreate = orderEntityRepository.findAll().size();
 
@@ -132,6 +128,79 @@ class OrderIntTest {
         // Validate database size
         int databaseSizeAfterCreate = orderEntityRepository.findAll().size();
         assertThat(databaseSizeAfterCreate).isEqualTo(databaseSizeBeforeCreate);
+    }
+
+    @Test
+    void createOrder_withDestinationBadSize_shouldReturnBadRequest() throws Exception {
+        orderCoordinates.setOrigin(Arrays.asList(LALAMOVE_HONG_KONG_OFFICE.latitude, LALAMOVE_HONG_KONG_OFFICE.longitude));
+        orderCoordinates.setDestination(Collections.singletonList(MALDIVES_ISLAND.latitude));
+
+        mockMvc.perform(post("/orders")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(TestUtil.convertObjectToJsonBytes(orderCoordinates)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value(containsString("Field error in object 'orderCoordinates' on field 'destination'")));
+    }
+
+    @Test
+    void createOrder_withDestinationBlank_shouldReturnBadRequest() throws Exception {
+        orderCoordinates.setOrigin(Arrays.asList(LALAMOVE_HONG_KONG_OFFICE.latitude, LALAMOVE_HONG_KONG_OFFICE.longitude));
+        orderCoordinates.setDestination(Arrays.asList(MALDIVES_ISLAND.latitude, " "));
+
+        mockMvc.perform(post("/orders")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(TestUtil.convertObjectToJsonBytes(orderCoordinates)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value(containsString("[destination[1]]]; default message [must not be blank]")));
+    }
+
+    @Test
+    void createOrder_withOriginBlank_shouldReturnBadRequest() throws Exception {
+        orderCoordinates.setOrigin(Arrays.asList(" ", LALAMOVE_HONG_KONG_OFFICE.longitude));
+        orderCoordinates.setDestination(Arrays.asList(MALDIVES_ISLAND.latitude, MALDIVES_ISLAND.longitude));
+
+        mockMvc.perform(post("/orders")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(TestUtil.convertObjectToJsonBytes(orderCoordinates)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value(containsString("[origin[0]]]; default message [must not be blank]")));
+    }
+
+    @Test
+    void createOrder_withOriginBadSize_shouldReturnBadRequest() throws Exception {
+        orderCoordinates.setOrigin(Collections.singletonList(LALAMOVE_HONG_KONG_OFFICE.latitude));
+        orderCoordinates.setDestination(Arrays.asList(MALDIVES_ISLAND.latitude, MALDIVES_ISLAND.longitude));
+
+        mockMvc.perform(post("/orders")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(TestUtil.convertObjectToJsonBytes(orderCoordinates)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value(containsString("Field error in object 'orderCoordinates' on field 'origin'")));
+    }
+
+    @Test
+    void createOrder_withOriginEmpty_shouldReturnBadRequest() throws Exception {
+        orderCoordinates.setOrigin(new ArrayList<>());
+        orderCoordinates.setDestination(Arrays.asList(MALDIVES_ISLAND.latitude, MALDIVES_ISLAND.longitude));
+
+        mockMvc.perform(post("/orders")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(TestUtil.convertObjectToJsonBytes(orderCoordinates)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value(containsString("Field error in object 'orderCoordinates' on field 'origin'")));
+    }
+
+    @Test
+    void createOrder_withOriginNull_shouldReturnBadRequest() throws Exception {
+        orderCoordinates.setOrigin(null);
+        orderCoordinates.setDestination(Arrays.asList(MALDIVES_ISLAND.latitude, MALDIVES_ISLAND.longitude));
+
+        mockMvc.perform(post("/orders")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(TestUtil.convertObjectToJsonBytes(orderCoordinates)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error")
+                .value(containsString("Field error in object 'orderCoordinates' on field 'origin': rejected value [null]")));
     }
 
     @Test
@@ -175,7 +244,7 @@ class OrderIntTest {
     }
 
     @Test
-    void createOrder_withNullBody_shouldReturnZeroResultsErro2() throws Exception {
+    void createOrder_withUnknownController_shouldReturnNotFoundMethod() throws Exception {
         mockMvc.perform(post("/unknown")
             .contentType(MediaType.APPLICATION_JSON)
             .content(TestUtil.convertObjectToJsonBytes(null)))

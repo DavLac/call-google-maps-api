@@ -10,38 +10,32 @@ import fr.dla.app.domain.PatchOrderResponse;
 import fr.dla.app.domain.ResponseStatusEnum;
 import fr.dla.app.domain.entities.OrderEntity;
 import fr.dla.app.repository.OrderEntityRepository;
-import fr.dla.app.service.dto.OrderCoordinatesDTO;
 import fr.dla.app.service.mapper.OrderMapper;
 import fr.dla.app.web.rest.errors.BadRequestException;
 import fr.dla.app.web.rest.errors.InternalServerErrorException;
 import fr.dla.app.web.rest.errors.NotFoundException;
 import fr.dla.app.web.rest.errors.PreconditionFailedException;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
-import org.thymeleaf.util.ArrayUtils;
 
 import javax.persistence.EntityManager;
 import javax.persistence.LockModeType;
 import javax.persistence.PersistenceContext;
-import javax.validation.constraints.NotNull;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import static fr.dla.app.config.Constants.ENTITY_DLAPP;
 import static fr.dla.app.config.Constants.GOOGLE_API_ENTITY;
 
+@Slf4j
 @Service
 @Transactional
 public class OrderService {
-
-    private final Logger log = LoggerFactory.getLogger(OrderService.class);
 
     private static final String BAD_REQUEST_ERROR_KEY = "badRequestError";
 
@@ -61,15 +55,9 @@ public class OrderService {
     }
 
     //region public method
-    public Order createOrder(@NotNull OrderCoordinatesDTO orderCoordinatesDTO) {
+    public Order createOrder(List<String> origin, List<String> destination) {
 
-        checkOrderCoordinatesBody(orderCoordinatesDTO);
-
-        DistanceMatrixResponseEntity distanceMatrixResponseEntity =
-            googleMapsRouteClient.getDistanceDetailsBetweenTwoCoordinates(
-                orderCoordinatesDTO.getOrigin(),
-                orderCoordinatesDTO.getDestination()
-            );
+        DistanceMatrixResponseEntity distanceMatrixResponseEntity = googleMapsRouteClient.getDistanceDetailsBetweenTwoCoordinates(origin, destination);
 
         handleDistanceMatrixResponseEntityResponse(distanceMatrixResponseEntity);
 
@@ -82,11 +70,8 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public List<Order> getOrders(final Integer page, final Integer limit) {
+    public List<Order> getOrders(final int page, final int limit) {
         log.info("Get orders with page = {} and limit = {}", page, limit);
-
-        checkParamMinimumSize(page, "Page");
-        checkParamMinimumSize(limit, "Limit");
 
         Page<OrderEntity> orderEntities = orderEntityRepository.findAll(PageRequest.of(page - 1, limit));
 
@@ -97,12 +82,8 @@ public class OrderService {
             .collect(Collectors.toList());
     }
 
-    public PatchOrderResponse takeOrder(final Integer orderId, final String orderStatus) {
+    public PatchOrderResponse takeOrder(final int orderId, final String orderStatus) {
         log.info("Take an order with order id = {}", orderId);
-
-        if (orderId == null) {
-            throw new BadRequestException("Order ID is null", ENTITY_DLAPP, BAD_REQUEST_ERROR_KEY);
-        }
 
         if (!StringUtils.equals(orderStatus, OrderStatusEnum.TAKEN.name())) {
             throw new BadRequestException(String.format("Status parameter is not equal to '%s'", OrderStatusEnum.TAKEN.name()),
@@ -129,33 +110,9 @@ public class OrderService {
     //endregion public method
 
     //region private method
-    private static void checkOrderCoordinatesBody(OrderCoordinatesDTO orderCoordinatesDTO) {
-        if (orderCoordinatesDTO == null) {
-            throw new BadRequestException("Body is null", ENTITY_DLAPP, "nullBodyError");
-        }
-
-        if (ArrayUtils.isEmpty(orderCoordinatesDTO.getDestination()) ||
-            ArrayUtils.isEmpty(orderCoordinatesDTO.getOrigin())) {
-            throw new BadRequestException("Parameters 'origin' and 'destination' must not be empty", ENTITY_DLAPP,
-                "emptyObjectError");
-        }
-
-        if (isOrderCoordinatesHasTwoStringNotBlank(orderCoordinatesDTO)) {
-            throw new BadRequestException("Parameters 'origin' and 'destination' must be an array of exactly two strings not blank",
-                ENTITY_DLAPP, "badObjectError");
-        }
-    }
-
-    private static boolean isOrderCoordinatesHasTwoStringNotBlank(OrderCoordinatesDTO orderCoordinatesDTO) {
-        return (orderCoordinatesDTO.getDestination().length != 2 ||
-            orderCoordinatesDTO.getOrigin().length != 2 ||
-            Arrays.stream(orderCoordinatesDTO.getOrigin()).anyMatch(StringUtils::isBlank) ||
-            Arrays.stream(orderCoordinatesDTO.getDestination()).anyMatch(StringUtils::isBlank));
-    }
-
     private static void handleDistanceMatrixResponseEntityResponse(DistanceMatrixResponseEntity distanceMatrixResponseEntity) {
         if (distanceMatrixResponseEntity == null) {
-            throw new InternalServerErrorException("Google maps API return a null response", GOOGLE_API_ENTITY, "nullBodyError");
+            throw new InternalServerErrorException("Google maps API return a null response", GOOGLE_API_ENTITY, "nullResponseError");
         }
 
         GoogleApiTopLevelStatusEnum topLevelResponseStatus = distanceMatrixResponseEntity.getStatus();
@@ -206,12 +163,6 @@ public class OrderService {
 
         if (distanceMatrixResponseEntity.getRows().get(0).getElements().get(0).getDistance() == null) {
             throw new InternalServerErrorException("Google maps API return null distance result", GOOGLE_API_ENTITY, "nullDistanceError");
-        }
-    }
-
-    private static void checkParamMinimumSize(Integer param, String paramName) {
-        if (param == null || param < 1) {
-            throw new BadRequestException(String.format("%s minimum size = 1", paramName), ENTITY_DLAPP, BAD_REQUEST_ERROR_KEY);
         }
     }
     //endregion private method

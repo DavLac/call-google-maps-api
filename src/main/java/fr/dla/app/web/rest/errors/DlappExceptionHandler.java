@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import javax.validation.ConstraintViolationException;
+
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @ControllerAdvice
 public class DlappExceptionHandler extends ResponseEntityExceptionHandler {
@@ -22,6 +24,11 @@ public class DlappExceptionHandler extends ResponseEntityExceptionHandler {
         }
 
         return ResponseEntity.status(ex.getStatus().getStatusCode()).body(new DlappErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<DlappErrorResponse> handleDlappException(ConstraintViolationException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new DlappErrorResponse(ex.getMessage()));
     }
 
     @Override

@@ -4,8 +4,7 @@ import fr.dla.app.client.googlemapsapi.GoogleMapsRouteClient;
 import fr.dla.app.client.googlemapsapi.model.DistanceMatrixResponseEntity;
 import fr.dla.app.web.rest.errors.InternalServerErrorException;
 import fr.dla.app.web.rest.errors.ProxyException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -18,13 +17,13 @@ import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.validation.constraints.Size;
+import java.util.List;
 
 import static fr.dla.app.config.Constants.GOOGLE_API_ENTITY;
 
+@Slf4j
 @Component
 public class GoogleMapsApiDistanceClientImpl implements GoogleMapsRouteClient {
-
-    private final Logger log = LoggerFactory.getLogger(GoogleMapsApiDistanceClientImpl.class);
 
     private static final String ORIGINS_PARAMETER = "origins";
     private static final String DESTINATIONS_PARAMETER = "destinations";
@@ -44,14 +43,14 @@ public class GoogleMapsApiDistanceClientImpl implements GoogleMapsRouteClient {
     }
 
     @Override
-    public DistanceMatrixResponseEntity getDistanceDetailsBetweenTwoCoordinates(@Size(min = 2, max = 2) String[] origin,
-                                                                                @Size(min = 2, max = 2) String[] destination) {
+    public DistanceMatrixResponseEntity getDistanceDetailsBetweenTwoCoordinates(@Size(min = 2, max = 2) List<String> origin,
+                                                                                @Size(min = 2, max = 2) List<String> destination) {
 
         log.info("Google maps API : get distance between two coordinates. origin={}, destination={}", origin, destination);
 
         UriComponents requestBuilder = UriComponentsBuilder.fromHttpUrl(endpointUrl)
-            .queryParam(ORIGINS_PARAMETER, String.format("%s,%s", origin[0], origin[1]))
-            .queryParam(DESTINATIONS_PARAMETER, String.format("%s,%s", destination[0], destination[1]))
+            .queryParam(ORIGINS_PARAMETER, String.format("%s,%s", origin.get(0), origin.get(1)))
+            .queryParam(DESTINATIONS_PARAMETER, String.format("%s,%s", destination.get(0), destination.get(1)))
             .queryParam(KEY_PARAMETER, apiKey)
             .build();
 
