@@ -21,6 +21,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -78,7 +81,6 @@ class OrderServiceTest {
         Order orderResponse = orderService.createOrder(origin, destination);
 
         assertThat(orderResponse).isEqualToComparingFieldByField(order);
-
     }
 
     @Test
@@ -149,5 +151,23 @@ class OrderServiceTest {
         } catch (InternalServerErrorException ex) {
             assertThat(ex.getErrorKey()).isEqualTo("nullResponseError");
         }
+    }
+
+    @Test
+    void getOrders_withGoodParameters_shouldReturnOrderList() {
+        //inputs
+        List<OrderEntity> orderEntityList = Arrays.asList(
+            new OrderEntity(ORDER_ID, ORDER_DISTANCE, OrderStatusEnum.UNASSIGNED),
+            new OrderEntity(ORDER_ID, ORDER_DISTANCE, OrderStatusEnum.UNASSIGNED)
+        );
+        Mockito.when(orderEntityRepository.findAll(any(Pageable.class)))
+            .thenReturn(new PageImpl<>(orderEntityList, PageRequest.of(0, 2), 2));
+        Order order = new Order(ORDER_ID, ORDER_DISTANCE, OrderStatusEnum.UNASSIGNED);
+        Mockito.when(orderMapper.toDto(any(OrderEntity.class))).thenReturn(order);
+
+        //test
+        List<Order> orderResponse = orderService.getOrders(1, 2);
+
+        assertThat(orderResponse.size()).isEqualTo(2);
     }
 }

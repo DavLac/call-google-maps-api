@@ -77,8 +77,6 @@ class OrderResourceTest {
         orderCoordinatesDTO.setDestination(orderCoordinatesDTO.getDestination());
         Mockito.when(orderCoordinatesMapper.toDto(orderCoordinates)).thenReturn(orderCoordinatesDTO);
 
-        //Mockito.when(orderService.createOrder(orderCoordinatesDTO)).thenThrow(new BadRequestException("", "", NULL_BODY_ERROR_ERROR_KEY));
-
         //test
         try {
             orderResource.createOrder(orderCoordinates);

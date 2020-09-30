@@ -26,6 +26,7 @@ import org.springframework.util.CollectionUtils;
 import javax.persistence.EntityManager;
 import javax.persistence.LockModeType;
 import javax.persistence.PersistenceContext;
+import javax.validation.constraints.Min;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -70,7 +71,7 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public List<Order> getOrders(final int page, final int limit) {
+    public List<Order> getOrders(@Min(1) final int page, @Min(1) final int limit) {
         log.info("Get orders with page = {} and limit = {}", page, limit);
 
         Page<OrderEntity> orderEntities = orderEntityRepository.findAll(PageRequest.of(page - 1, limit));

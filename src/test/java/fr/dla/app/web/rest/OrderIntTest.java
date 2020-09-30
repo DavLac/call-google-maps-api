@@ -2,10 +2,14 @@ package fr.dla.app.web.rest;
 
 import fr.dla.app.DlappApp;
 import fr.dla.app.domain.OrderCoordinates;
+import fr.dla.app.domain.OrderStatus;
 import fr.dla.app.domain.OrderStatusEnum;
+import fr.dla.app.domain.PatchOrderResponse;
+import fr.dla.app.domain.ResponseStatusEnum;
 import fr.dla.app.domain.entities.OrderEntity;
 import fr.dla.app.repository.OrderEntityRepository;
 import fr.dla.app.web.rest.errors.DlappExceptionHandler;
+import lombok.val;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,8 +31,12 @@ import static fr.dla.app.web.rest.OrderIntTest.CoordinatesEnum.LALAMOVE_HONG_KON
 import static fr.dla.app.web.rest.OrderIntTest.CoordinatesEnum.MALDIVES_ISLAND;
 import static fr.dla.app.web.rest.OrderIntTest.CoordinatesEnum.PARIS_EIFFEL_TOWER;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsInRelativeOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -249,5 +257,119 @@ class OrderIntTest {
             .contentType(MediaType.APPLICATION_JSON)
             .content(TestUtil.convertObjectToJsonBytes(null)))
             .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @Transactional
+    void getOrders_withValidParameters_shouldReturnAllOrders() throws Exception {
+        orderEntityRepository.save(new OrderEntity(1, 10, OrderStatusEnum.UNASSIGNED));
+        orderEntityRepository.save(new OrderEntity(2, 20, OrderStatusEnum.UNASSIGNED));
+        orderEntityRepository.save(new OrderEntity(3, 30, OrderStatusEnum.TAKEN));
+
+        mockMvc.perform(get("/orders")
+            .contentType(MediaType.APPLICATION_JSON)
+            .param("page", "1")
+            .param("limit", "10"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$", hasSize(3)))
+            .andExpect(jsonPath("$[*].id").isNotEmpty())
+            .andExpect(jsonPath("$[*].distance").value(containsInRelativeOrder(10, 20, 30)))
+            .andExpect(jsonPath("$[*].status").value(containsInRelativeOrder(
+                OrderStatusEnum.UNASSIGNED.name(),
+                OrderStatusEnum.UNASSIGNED.name(),
+                OrderStatusEnum.TAKEN.name())));
+    }
+
+    @Test
+    @Transactional
+    void getOrders_withNoOrders_shouldReturnEmptyList() throws Exception {
+        mockMvc.perform(get("/orders")
+            .contentType(MediaType.APPLICATION_JSON)
+            .param("page", "2")
+            .param("limit", "2"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    void getOrders_withBadPageParam_shouldReturnBadRequest() throws Exception {
+        mockMvc.perform(get("/orders")
+            .contentType(MediaType.APPLICATION_JSON)
+            .param("page", "0")
+            .param("limit", "2"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("getOrders.page: must be greater than or equal to 1"));
+    }
+
+    @Test
+    void getOrders_withBadLimitParam_shouldReturnBadRequest() throws Exception {
+        mockMvc.perform(get("/orders")
+            .contentType(MediaType.APPLICATION_JSON)
+            .param("page", "1")
+            .param("limit", "-1"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("getOrders.limit: must be greater than or equal to 1"));
+    }
+
+    @Test
+    void getOrders_withNoParam_shouldReturnBadRequest() throws Exception {
+        mockMvc.perform(get("/orders")
+            .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("Required int parameter 'page' is not present"));
+    }
+
+    @Test
+    @Transactional
+    void takeOrder_withTakenStatus_shouldPatchOrder() throws Exception {
+        OrderStatus orderStatus = new OrderStatus(OrderStatusEnum.TAKEN.name());
+
+        OrderEntity orderEntity = orderEntityRepository.save(new OrderEntity(1, 10, OrderStatusEnum.UNASSIGNED));
+
+        mockMvc.perform(patch(String.format("/orders/%d", orderEntity.getId()))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(TestUtil.convertObjectToJsonBytes(orderStatus)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value(ResponseStatusEnum.SUCCESS.name()));
+
+        OrderEntity orderEntityTaken = orderEntityRepository.findById(orderEntity.getId()).orElse(null);
+        assertThat(orderEntityTaken.getId()).isEqualTo(orderEntity.getId());
+        assertThat(orderEntityTaken.getDistance()).isEqualTo(orderEntity.getDistance());
+        assertThat(orderEntityTaken.getStatus()).isEqualTo(OrderStatusEnum.TAKEN);
+    }
+
+    @Test
+    @Transactional
+    void takeOrder_withAlreadyTaken_shouldThrowAnError() throws Exception {
+        OrderStatus orderStatus = new OrderStatus(OrderStatusEnum.TAKEN.name());
+        OrderEntity orderEntity = new OrderEntity(1, 10, OrderStatusEnum.TAKEN);
+
+        orderEntityRepository.save(orderEntity);
+
+        mockMvc.perform(patch(String.format("/orders/%d", orderEntity.getId()))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(TestUtil.convertObjectToJsonBytes(orderStatus)))
+            .andExpect(status().isPreconditionFailed())
+            .andExpect(jsonPath("$.error").value("Order already taken"));
+    }
+
+    @Test
+    void takeOrder_withBadStatusInput_shouldThrowAnError() throws Exception {
+        OrderStatus orderStatus = new OrderStatus(OrderStatusEnum.UNASSIGNED.name());
+
+        mockMvc.perform(patch(String.format("/orders/%d", 1))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(TestUtil.convertObjectToJsonBytes(orderStatus)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("Status parameter is not equal to 'TAKEN'"));
+    }
+
+    @Test
+    void takeOrder_withEmptyBody_shouldThrowAnError() throws Exception {
+        mockMvc.perform(patch(String.format("/orders/%d", 1))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(TestUtil.convertObjectToJsonBytes(new OrderStatus())))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value(containsString("Field error in object 'orderStatus' on field 'status': rejected value [null]")));
     }
 }
