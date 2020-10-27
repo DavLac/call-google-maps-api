@@ -4,6 +4,10 @@ This application was generated using JHipster 6.10.1, you can find documentation
 
 This is a "microservice" application intended to be part of a microservice architecture, please refer to the [Doing microservices with JHipster][] page of the documentation for more information.
 
+## Readme links
+
+- [Technical task instructions](README-TASK.md)
+
 ## Google API key configuration
 
 To use this application, please insert your own Google api key in this following files :
