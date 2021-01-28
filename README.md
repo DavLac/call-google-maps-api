@@ -18,7 +18,7 @@ To use this application, please insert your own Google api key in this following
 
 Property name : application.google-maps-api.key
 
-## Starting the application with Docker
+## Starting the application with Bash
 
 Just execute start.sh at the root of the project.
 2 containers will be launched :
@@ -27,6 +27,17 @@ Just execute start.sh at the root of the project.
 - the Dlapp component
 
 You can reach the microservice on port 8080.
+
+### Run with Docker Hub image
+
+You can get the image on Docker Hub.
+To run the container, just type this command line :
+```
+
+docker-compose run
+
+```
+[Docker image on Docker Hub davlac/call-google-maps-api](https://hub.docker.com/repository/docker/davlac/call-google-maps-api)
 
 ## Development
 
